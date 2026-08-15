@@ -9,7 +9,8 @@
   <body>
     <div id="dropZone">Drag video here</div>
     <div id="playerContainer">
-      <video id="videoPlayer" width="600"></video>
+      <video id="videoPlayer" width="600" preload="auto"></video>
+
       <div id="controlsBar">
         <button id="playPauseBtn">▶</button>
         <input type="range" id="progressBar" value="0" min="0" max="100" />
@@ -23,7 +24,6 @@
           step="0.1"
           value="1"
         />
-
         <button id="fullscreenBtn">⛶</button>
       </div>
     </div>

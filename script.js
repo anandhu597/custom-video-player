@@ -11,15 +11,15 @@ const fullscreenBtn = document.getElementById("fullscreenBtn");
 
 let currentVideoURL = null;
 
-// ===== File Input =====
+// ===== File Loading (Input) =====
 fileInput.addEventListener("change", () => {
   const file = fileInput.files[0];
   if (file) createURLAndLoad(file);
 });
 
-// ===== Drag & Drop =====
+// ===== File Loading (Drag & Drop) =====
 dropZone.addEventListener("dragover", (event) => {
-  event.preventDefault();
+  event.preventDefault(); // required, or browser blocks the drop
 });
 
 dropZone.addEventListener("drop", (event) => {
@@ -33,14 +33,9 @@ videoPlayer.addEventListener("error", () => {
   console.log("Video error:", videoPlayer.error);
 });
 
-videoPlayer.addEventListener("play", () => {
-  playPauseBtn.textContent = "⏸";
-});
-
-videoPlayer.addEventListener("pause", () => {
-  playPauseBtn.textContent = "▶";
-});
-
+// ===== Play / Pause =====
+// Button only triggers play/pause; label is synced via video's own
+// play/pause events so it stays correct regardless of what triggered it.
 playPauseBtn.addEventListener("click", () => {
   if (videoPlayer.paused) {
     videoPlayer.play();
@@ -49,6 +44,19 @@ playPauseBtn.addEventListener("click", () => {
   }
 });
 
+videoPlayer.addEventListener("play", () => {
+  playPauseBtn.textContent = "⏸";
+});
+
+videoPlayer.addEventListener("pause", () => {
+  playPauseBtn.textContent = "▶";
+});
+
+// ===== Mute / Volume =====
+// muted and volume are independent video properties.
+// muteBtn only toggles `muted`; volumeSlider only sets `volume`.
+// The `volumechange` event is the single source of truth for syncing
+// both the icon and slider position, no matter which one triggered it.
 muteBtn.addEventListener("click", () => {
   videoPlayer.muted = !videoPlayer.muted;
 });
@@ -64,22 +72,24 @@ videoPlayer.addEventListener("volumechange", () => {
   } else {
     muteBtn.textContent = "🔊";
   }
-  volumeSlider.value = videoPlayer.volume; // always reflect real volume, mute or not
+  volumeSlider.value = videoPlayer.volume; // slider always reflects real volume
 });
 
-//Time Display + Progress Sync (video → UI)
-
+// ===== Time Display + Progress Sync (video → UI) =====
+// progressBar.max is set once metadata loads, since duration is NaN
+// until then. After that, progressBar.value tracks currentTime directly
+// (same unit, seconds) — no percentage math needed.
 videoPlayer.addEventListener("loadedmetadata", () => {
   progressBar.max = videoPlayer.duration;
-  console.log("max width set :", videoPlayer.duration);
 });
 
 videoPlayer.addEventListener("timeupdate", () => {
   progressBar.value = videoPlayer.currentTime;
-  // console.log("slid bar updated :", videoPlayer.currentTime);
   timeDisplay.textContent = `${Math.floor(videoPlayer.currentTime)}/${Math.floor(videoPlayer.duration)}`;
 });
 
+// ===== Seek (UI → video) =====
+// `input` fires continuously while dragging, giving live seeking.
 progressBar.addEventListener("input", (e) => {
   videoPlayer.currentTime = parseFloat(e.target.value);
 });
@@ -87,12 +97,14 @@ progressBar.addEventListener("input", (e) => {
 // ===== Helpers =====
 function createURLAndLoad(file) {
   if (currentVideoURL) {
-    URL.revokeObjectURL(currentVideoURL);
+    URL.revokeObjectURL(currentVideoURL); // avoid memory leak on file switch
   }
   currentVideoURL = URL.createObjectURL(file);
-  console.log(currentVideoURL);
   videoPlayer.src = currentVideoURL;
   videoPlayer.load();
-  videoPlayer.pause(); // ensures consistent state, button resets to
-  playPauseBtn.textContent = "▶"; // force it directly, don't rely on event
+
+  // Reset state explicitly on new file load, don't rely on browser
+  // autoplay behavior or events firing (they may not, if already paused).
+  videoPlayer.pause();
+  playPauseBtn.textContent = "▶";
 }

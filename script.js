@@ -9,7 +9,32 @@ const muteBtn = document.getElementById("muteBtn");
 const volumeSlider = document.getElementById("volumeSlider");
 const fullscreenBtn = document.getElementById("fullscreenBtn");
 
+const controlsBar = document.getElementById("controlsBar");
+// const playerContainer = document.getElementById("playerContainer");
 let currentVideoURL = null;
+
+const playerState = {
+  isPlaying: false,
+  isMuted: false,
+  duration: 0,
+  currentTime: 0,
+  controlsVisible: true, // New state property
+};
+
+function renderUI() {
+  playPauseBtn.textContent = playerState.isPlaying ? "⏸" : "▶";
+  muteBtn.textContent = playerState.isMuted ? "🔇" : "🔊";
+  progressBar.max = playerState.duration;
+  progressBar.value = playerState.currentTime;
+  timeDisplay.textContent = `${formatTime(playerState.currentTime)} / ${formatTime(playerState.duration)}`;
+
+  // Controls visibility render
+  if (playerState.controlsVisible) {
+    controlsBar.classList.remove("hidden");
+  } else {
+    controlsBar.classList.add("hidden");
+  }
+}
 
 // ===== File Loading (Input) =====
 fileInput.addEventListener("change", () => {
@@ -45,11 +70,13 @@ playPauseBtn.addEventListener("click", () => {
 });
 
 videoPlayer.addEventListener("play", () => {
-  playPauseBtn.textContent = "⏸";
+  playerState.isPlaying = true;
+  renderUI();
 });
 
 videoPlayer.addEventListener("pause", () => {
-  playPauseBtn.textContent = "▶";
+  playerState.isPlaying = false;
+  renderUI();
 });
 
 // ===== Mute / Volume =====
@@ -67,12 +94,9 @@ volumeSlider.addEventListener("input", (e) => {
 });
 
 videoPlayer.addEventListener("volumechange", () => {
-  if (videoPlayer.muted || videoPlayer.volume === 0) {
-    muteBtn.textContent = "🔇";
-  } else {
-    muteBtn.textContent = "🔊";
-  }
-  volumeSlider.value = videoPlayer.volume; // slider always reflects real volume
+  playerState.isMuted = videoPlayer.muted || videoPlayer.volume === 0;
+  renderUI();
+  volumeSlider.value = videoPlayer.volume;
 });
 
 // ===== Time Display + Progress Sync (video → UI) =====
@@ -80,12 +104,13 @@ videoPlayer.addEventListener("volumechange", () => {
 // until then. After that, progressBar.value tracks currentTime directly
 // (same unit, seconds) — no percentage math needed.
 videoPlayer.addEventListener("loadedmetadata", () => {
-  progressBar.max = videoPlayer.duration;
+  playerState.duration = videoPlayer.duration;
+  renderUI();
 });
 
 videoPlayer.addEventListener("timeupdate", () => {
-  progressBar.value = videoPlayer.currentTime;
-  timeDisplay.textContent = `${Math.floor(videoPlayer.currentTime)}/${Math.floor(videoPlayer.duration)}`;
+  playerState.currentTime = videoPlayer.currentTime;
+  renderUI();
 });
 
 // ===== Seek (UI → video) =====
@@ -97,14 +122,55 @@ progressBar.addEventListener("input", (e) => {
 // ===== Helpers =====
 function createURLAndLoad(file) {
   if (currentVideoURL) {
-    URL.revokeObjectURL(currentVideoURL); // avoid memory leak on file switch
+    URL.revokeObjectURL(currentVideoURL);
   }
   currentVideoURL = URL.createObjectURL(file);
   videoPlayer.src = currentVideoURL;
   videoPlayer.load();
 
-  // Reset state explicitly on new file load, don't rely on browser
-  // autoplay behavior or events firing (they may not, if already paused).
   videoPlayer.pause();
-  playPauseBtn.textContent = "▶";
+  playerState.isPlaying = false;
+  playerState.currentTime = 0;
+  renderUI(); // instead of playPauseBtn.textContent = "▶"
 }
+
+function formatTime(totalSeconds) {
+  if (isNaN(totalSeconds) || totalSeconds < 0) return "0:00";
+
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+
+  const paddedSeconds = String(seconds).padStart(2, "0");
+
+  if (hours > 0) {
+    const paddedMinutes = String(minutes).padStart(2, "0");
+    return `${hours}:${paddedMinutes}:${paddedSeconds}`;
+  }
+
+  return `${minutes}:${paddedSeconds}`;
+}
+
+const playerContainer = document.getElementById("playerContainer");
+let hideControlsTimer = null;
+
+playerContainer.addEventListener("mousemove", () => {
+  playerState.controlsVisible = true;
+  renderUI();
+  clearTimeout(hideControlsTimer);
+
+  if (!videoPlayer.paused) {
+    hideControlsTimer = setTimeout(() => {
+      playerState.controlsVisible = false;
+      renderUI();
+    }, 3000);
+  }
+});
+
+playerContainer.addEventListener("mouseleave", () => {
+  clearTimeout(hideControlsTimer);
+  if (!videoPlayer.paused) {
+    playerState.controlsVisible = false;
+    renderUI();
+  }
+});

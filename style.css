@@ -28,6 +28,9 @@
   box-sizing: border-box;
   background: #222;
   padding: 8px 12px;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.3s ease-in-out;
 }
 
 #controlsBar button {
@@ -47,4 +50,10 @@
   color: white;
   font-size: 14px;
   white-space: nowrap;
+}
+
+/* Hidden state class applied by JavaScript */
+#controlsBar.hidden {
+  opacity: 0;
+  pointer-events: none;
 }

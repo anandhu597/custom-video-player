@@ -148,10 +148,16 @@ fileInput.addEventListener("change", () => {
 // ===== File Loading (Drag & Drop) =====
 dropZone.addEventListener("dragover", (event) => {
   event.preventDefault(); // required, or browser blocks the drop
+  dropZone.classList.add("drag-active");
+});
+
+dropZone.addEventListener("dragleave", () => {
+  dropZone.classList.remove("drag-active");
 });
 
 dropZone.addEventListener("drop", (event) => {
   event.preventDefault();
+  dropZone.classList.remove("drag-active"); // reset after drop too
   const file = event.dataTransfer.files[0];
   if (file) createURLAndLoad(file);
 });

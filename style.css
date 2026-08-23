@@ -58,7 +58,7 @@ body {
 }
 
 #dropZone.drag-active {
-  transform: scale(2.03);
+  transform: scale(1.03);
   border-color: #4caf50;
   background: #1f2a1f;
   color: #ccc;

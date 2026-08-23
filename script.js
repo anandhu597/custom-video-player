@@ -214,10 +214,6 @@ videoPlayer.addEventListener("volumechange", () => {
 // until then. After that, progressBar.value tracks currentTime directly
 // (same unit, seconds) — no percentage math needed.
 videoPlayer.addEventListener("loadedmetadata", () => {
-  if (!hasAudioTrack(videoPlayer)) {
-    console.warn("No audio track detected in this video.");
-  }
-
   if (videoPlayer.videoWidth === 0) {
     resetPlayerState("Video format or codec is not supported.");
     return;
@@ -226,7 +222,12 @@ videoPlayer.addEventListener("loadedmetadata", () => {
   playerState.duration = videoPlayer.duration;
   renderUI();
 });
-
+// Check audio only after the browser's actually decoded a bit of playback data
+videoPlayer.addEventListener("canplay", () => {
+  if (!hasAudioTrack(videoPlayer)) {
+    console.warn("No audio track detected in this video.");
+  }
+});
 videoPlayer.addEventListener("timeupdate", () => {
   playerState.currentTime = videoPlayer.currentTime;
   renderUI();
@@ -279,4 +280,52 @@ playerContainer.addEventListener("mouseleave", () => {
 // ===== Fullscreen =====
 fullscreenBtn.addEventListener("click", () => {
   toggleFullscreen(playerContainer);
+});
+
+// --- KEYBOARD SHORTCUTS (QUESTIONS 1 - 5) ---
+document.addEventListener("keydown", (e) => {
+  // Ignore shortcuts if typing inside inputs
+  const isInput =
+    e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA";
+  if (isInput) return;
+
+  switch (e.code) {
+    case "Space":
+    case "KeyK":
+      e.preventDefault();
+      if (videoPlayer.paused) {
+        videoPlayer.play();
+      } else {
+        videoPlayer.pause();
+      }
+      break;
+
+    case "ArrowLeft":
+      e.preventDefault();
+      videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 5);
+      break;
+
+    case "ArrowRight":
+      e.preventDefault();
+      videoPlayer.currentTime = Math.min(
+        videoPlayer.duration,
+        videoPlayer.currentTime + 5,
+      );
+      break;
+
+    case "ArrowUp":
+      e.preventDefault();
+      videoPlayer.volume = Math.min(1, videoPlayer.volume + 0.1);
+      break;
+
+    case "ArrowDown":
+      e.preventDefault();
+      videoPlayer.volume = Math.max(0, videoPlayer.volume - 0.1);
+      break;
+
+    case "KeyM":
+      e.preventDefault();
+      videoPlayer.muted = !videoPlayer.muted;
+      break;
+  }
 });

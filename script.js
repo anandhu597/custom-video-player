@@ -222,12 +222,14 @@ videoPlayer.addEventListener("loadedmetadata", () => {
   playerState.duration = videoPlayer.duration;
   renderUI();
 });
-// Check audio only after the browser's actually decoded a bit of playback data
+
+// Check audio only after the browser has actually decoded some playback data
 videoPlayer.addEventListener("canplay", () => {
   if (!hasAudioTrack(videoPlayer)) {
     console.warn("No audio track detected in this video.");
   }
 });
+
 videoPlayer.addEventListener("timeupdate", () => {
   playerState.currentTime = videoPlayer.currentTime;
   renderUI();
@@ -282,7 +284,8 @@ fullscreenBtn.addEventListener("click", () => {
   toggleFullscreen(playerContainer);
 });
 
-// --- KEYBOARD SHORTCUTS (QUESTIONS 1 - 5) ---
+// ===== Keyboard Shortcuts =====
+// Space/K: play-pause, ←/→: seek ±5s, ↑/↓: volume ±10%, M: mute
 document.addEventListener("keydown", (e) => {
   // Ignore shortcuts if typing inside inputs
   const isInput =

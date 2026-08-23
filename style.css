@@ -44,6 +44,8 @@
 /* ===== Individual Controls ===== */
 #progressBar {
   flex: 1;
+  width: 100%; /* override the browser's default intrinsic slider width */
+  min-width: 0; /* allow flex item to shrink/grow freely, ignoring intrinsic size */
 }
 
 #timeDisplay {
@@ -56,4 +58,29 @@
 #controlsBar.hidden {
   opacity: 0;
   pointer-events: none;
+}
+
+#progressContainer {
+  display: flex;
+  align-items: center;
+  flex: 1; /* shorthand: grow=1, shrink=1, basis=0 */
+  min-width: 0; /* stop it from refusing to shrink below content size */
+  position: relative;
+}
+
+#hoverPreview {
+  position: absolute;
+  top: -30px; /* Positions preview above progress bar */
+  transform: translateX(-50%); /* Centers tooltip on cursor */
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none; /* Prevents flickering while moving mouse */
+  white-space: nowrap;
+}
+
+.hidden {
+  display: none;
 }

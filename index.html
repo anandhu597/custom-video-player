@@ -13,7 +13,11 @@
 
       <div id="controlsBar">
         <button id="playPauseBtn">▶</button>
-        <input type="range" id="progressBar" value="0" min="0" max="100" />
+        <!-- Progress Container holding the preview and range input -->
+        <div id="progressContainer">
+          <div id="hoverPreview" class="hidden">00:00</div>
+          <input type="range" id="progressBar" value="0" min="0" max="100" />
+        </div>
         <span id="timeDisplay">00:00/00:00</span>
         <button id="muteBtn">🔊</button>
         <input

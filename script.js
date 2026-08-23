@@ -174,3 +174,32 @@ playerContainer.addEventListener("mouseleave", () => {
     renderUI();
   }
 });
+
+//hover time preview
+
+const hoverPreview = document.getElementById("hoverPreview");
+
+progressBar.addEventListener("mouseenter", () => {
+  hoverPreview.classList.remove("hidden");
+});
+
+progressBar.addEventListener("mousemove", (event) => {
+  const previewTime =
+    (event.offsetX / progressBar.offsetWidth) * playerState.duration;
+
+  hoverPreview.textContent = formatTime(previewTime);
+  hoverPreview.style.left = `${event.offsetX}px`;
+
+  // console.log(
+  //   "offsetX:",
+  //   event.offsetX,
+  //   "width:",
+  //   progressBar.offsetWidth,
+  //   "duration:",
+  //   playerState.duration,
+  // );
+});
+
+progressBar.addEventListener("mouseleave", () => {
+  hoverPreview.classList.add("hidden");
+});

@@ -1,26 +1,33 @@
 // ===== Elements =====
 const videoPlayer = document.getElementById("videoPlayer");
+const playerContainer = document.getElementById("playerContainer");
 const fileInput = document.getElementById("fileInput");
 const dropZone = document.getElementById("dropZone");
+const dropZoneText = document.getElementById("dropZoneText");
+
+const controlsBar = document.getElementById("controlsBar");
 const playPauseBtn = document.getElementById("playPauseBtn");
+const progressContainer = document.getElementById("progressContainer");
 const progressBar = document.getElementById("progressBar");
+const hoverPreview = document.getElementById("hoverPreview");
 const timeDisplay = document.getElementById("timeDisplay");
 const muteBtn = document.getElementById("muteBtn");
 const volumeSlider = document.getElementById("volumeSlider");
 const fullscreenBtn = document.getElementById("fullscreenBtn");
 
-const controlsBar = document.getElementById("controlsBar");
-// const playerContainer = document.getElementById("playerContainer");
+// ===== State =====
 let currentVideoURL = null;
+let hideControlsTimer = null;
 
 const playerState = {
   isPlaying: false,
   isMuted: false,
   duration: 0,
   currentTime: 0,
-  controlsVisible: true, // New state property
+  controlsVisible: true,
 };
 
+// ===== Render (single source of DOM writes for player state) =====
 function renderUI() {
   playPauseBtn.textContent = playerState.isPlaying ? "⏸" : "▶";
   muteBtn.textContent = playerState.isMuted ? "🔇" : "🔊";
@@ -28,11 +35,107 @@ function renderUI() {
   progressBar.value = playerState.currentTime;
   timeDisplay.textContent = `${formatTime(playerState.currentTime)} / ${formatTime(playerState.duration)}`;
 
-  // Controls visibility render
   if (playerState.controlsVisible) {
     controlsBar.classList.remove("hidden");
   } else {
     controlsBar.classList.add("hidden");
+  }
+}
+
+// ===== Helpers =====
+function formatTime(totalSeconds) {
+  if (isNaN(totalSeconds) || totalSeconds < 0) return "0:00";
+
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  const paddedSeconds = String(seconds).padStart(2, "0");
+
+  if (hours > 0) {
+    const paddedMinutes = String(minutes).padStart(2, "0");
+    return `${hours}:${paddedMinutes}:${paddedSeconds}`;
+  }
+  return `${minutes}:${paddedSeconds}`;
+}
+
+function hasAudioTrack(video) {
+  // 1. Standard HTML5 AudioTracks API (Safari / modern specs)
+  if (video.audioTracks && video.audioTracks.length > 0) {
+    return true;
+  }
+  // 2. Firefox non-standard property
+  if (typeof video.mozHasAudio !== "undefined") {
+    return video.mozHasAudio;
+  }
+  // 3. Chrome/Blink fallback (after video starts loading/playing)
+  if (typeof video.webkitAudioDecodedByteCount !== "undefined") {
+    return video.webkitAudioDecodedByteCount > 0;
+  }
+  // 4. Default to true if browser support is missing (graceful fallback)
+  return true;
+}
+
+function createURLAndLoad(file) {
+  // First-pass hint check — file.type can be unreliable, but it's a cheap filter
+  if (file && !file.type.startsWith("video/")) {
+    resetPlayerState("Selected file is not a valid video.");
+    return;
+  }
+
+  if (currentVideoURL) {
+    URL.revokeObjectURL(currentVideoURL); // avoid memory leak on file switch
+  }
+  currentVideoURL = URL.createObjectURL(file);
+  videoPlayer.src = currentVideoURL;
+  videoPlayer.load();
+
+  // Reset state explicitly on new file load, don't rely on browser
+  // autoplay behavior or events firing (they may not, if already paused).
+  videoPlayer.pause();
+  playerState.isPlaying = false;
+  playerState.currentTime = 0;
+  renderUI();
+}
+
+function resetPlayerState(errorMessage) {
+  videoPlayer.pause();
+
+  if (videoPlayer.src) {
+    URL.revokeObjectURL(videoPlayer.src);
+  }
+
+  videoPlayer.removeAttribute("src");
+  videoPlayer.load();
+
+  playerState.isPlaying = false;
+  playerState.currentTime = 0;
+  playerState.duration = 0;
+  playerState.controlsVisible = true;
+  renderUI();
+
+  if (dropZoneText) {
+    dropZoneText.textContent = errorMessage;
+  }
+  dropZone.classList.remove("hidden");
+}
+
+function toggleFullscreen(container) {
+  // Handles standard API + Safari's webkit-prefixed fallback
+  const fullscreenElement =
+    document.fullscreenElement || document.webkitFullscreenElement;
+
+  if (!fullscreenElement) {
+    if (container.requestFullscreen) {
+      container.requestFullscreen();
+    } else if (container.webkitRequestFullscreen) {
+      container.webkitRequestFullscreen(); // Safari
+    }
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen(); // Safari
+    }
   }
 }
 
@@ -56,6 +159,7 @@ dropZone.addEventListener("drop", (event) => {
 // ===== Video Error Handling =====
 videoPlayer.addEventListener("error", () => {
   console.log("Video error:", videoPlayer.error);
+  resetPlayerState("Failed to load or play video file.");
 });
 
 // ===== Play / Pause =====
@@ -104,6 +208,15 @@ videoPlayer.addEventListener("volumechange", () => {
 // until then. After that, progressBar.value tracks currentTime directly
 // (same unit, seconds) — no percentage math needed.
 videoPlayer.addEventListener("loadedmetadata", () => {
+  if (!hasAudioTrack(videoPlayer)) {
+    console.warn("No audio track detected in this video.");
+  }
+
+  if (videoPlayer.videoWidth === 0) {
+    resetPlayerState("Video format or codec is not supported.");
+    return;
+  }
+
   playerState.duration = videoPlayer.duration;
   renderUI();
 });
@@ -119,41 +232,23 @@ progressBar.addEventListener("input", (e) => {
   videoPlayer.currentTime = parseFloat(e.target.value);
 });
 
-// ===== Helpers =====
-function createURLAndLoad(file) {
-  if (currentVideoURL) {
-    URL.revokeObjectURL(currentVideoURL);
-  }
-  currentVideoURL = URL.createObjectURL(file);
-  videoPlayer.src = currentVideoURL;
-  videoPlayer.load();
+// ===== Hover Time Preview =====
+progressBar.addEventListener("mouseenter", () => {
+  hoverPreview.classList.remove("hidden");
+});
 
-  videoPlayer.pause();
-  playerState.isPlaying = false;
-  playerState.currentTime = 0;
-  renderUI(); // instead of playPauseBtn.textContent = "▶"
-}
+progressBar.addEventListener("mousemove", (event) => {
+  const previewTime =
+    (event.offsetX / progressBar.offsetWidth) * playerState.duration;
+  hoverPreview.textContent = formatTime(previewTime);
+  hoverPreview.style.left = `${event.offsetX}px`;
+});
 
-function formatTime(totalSeconds) {
-  if (isNaN(totalSeconds) || totalSeconds < 0) return "0:00";
+progressBar.addEventListener("mouseleave", () => {
+  hoverPreview.classList.add("hidden");
+});
 
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = Math.floor(totalSeconds % 60);
-
-  const paddedSeconds = String(seconds).padStart(2, "0");
-
-  if (hours > 0) {
-    const paddedMinutes = String(minutes).padStart(2, "0");
-    return `${hours}:${paddedMinutes}:${paddedSeconds}`;
-  }
-
-  return `${minutes}:${paddedSeconds}`;
-}
-
-const playerContainer = document.getElementById("playerContainer");
-let hideControlsTimer = null;
-
+// ===== Auto-hide Controls =====
 playerContainer.addEventListener("mousemove", () => {
   playerState.controlsVisible = true;
   renderUI();
@@ -175,31 +270,7 @@ playerContainer.addEventListener("mouseleave", () => {
   }
 });
 
-//hover time preview
-
-const hoverPreview = document.getElementById("hoverPreview");
-
-progressBar.addEventListener("mouseenter", () => {
-  hoverPreview.classList.remove("hidden");
-});
-
-progressBar.addEventListener("mousemove", (event) => {
-  const previewTime =
-    (event.offsetX / progressBar.offsetWidth) * playerState.duration;
-
-  hoverPreview.textContent = formatTime(previewTime);
-  hoverPreview.style.left = `${event.offsetX}px`;
-
-  // console.log(
-  //   "offsetX:",
-  //   event.offsetX,
-  //   "width:",
-  //   progressBar.offsetWidth,
-  //   "duration:",
-  //   playerState.duration,
-  // );
-});
-
-progressBar.addEventListener("mouseleave", () => {
-  hoverPreview.classList.add("hidden");
+// ===== Fullscreen =====
+fullscreenBtn.addEventListener("click", () => {
+  toggleFullscreen(playerContainer);
 });
